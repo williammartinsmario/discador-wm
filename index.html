@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wm Assessoria</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --gold:#8a6d3b;
+      --bg1:#444;
+      --bg2:#999;
+      --whats:#25d366;
+    }
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{
+      font-family:'Inter',sans-serif;
+      background:linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      padding:20px;
+      min-height:100vh;
+    }
+    header{
+      background:#f7f4ec;
+      border-radius:12px;
+      padding:20px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      margin-bottom:30px;
+    }
+    header img{height:60px}
+    header h1{
+      font-family:'Playfair Display',serif;
+      font-size:2rem;
+      color:var(--gold);
+      margin:0 auto;
+    }
+    #counter{color:gold;font-size:1.2rem}
+    #fileInput{margin:20px 0 10px}
+    button{
+      padding:8px 16px;
+      border:none;
+      border-radius:6px;
+      cursor:pointer;
+      font-weight:600;
+      margin-right:8px;
+      color:#fff;
+    }
+    .call-btn{background:var(--gold)}
+    .whats-btn{background:var(--whats)}
+    .save-btn{background:#333}
+    .clear-btn{background:#b22222}
+    .lead{
+      background:rgba(255,255,255,0.08);
+      border:1px solid #aaa;
+      border-radius:8px;
+      padding:15px;
+      margin-bottom:12px;
+    }
+    .lead.active{border:2px solid gold}
+    textarea{
+      width:100%;
+      height:60px;
+      margin-top:8px;
+      border-radius:6px;
+      border:none;
+      padding:8px;
+      font-family:'Inter',sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="Wm Assessoria">
+    <h1>Wm Assessoria</h1>
+    <div id="counter">📞 Ligações: <span id="callCount">0</span></div>
+  </header>
+
+  <input type="file" id="fileInput" accept=".csv,.xlsx">
+  <button class="clear-btn" onclick="limpar()">Limpar Planilha</button>
+
+  <div id="leadsContainer"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script>
+    let leads=[],callCount=0;
+
+    /* ---------- Importação ---------- */
+    fileInput.addEventListener('change',e=>{
+      const file=e.target.files[0]; if(!file)return;
+      const ext=file.name.split('.').pop().toLowerCase();
+      ext==='csv'?lerCSV(file):ext==='xlsx'?lerXLSX(file):alert('Formato não suportado');
+    });
+    function lerCSV(f){
+      Papa.parse(f,{header:false,skipEmptyLines:'greedy',complete:r=>{
+        leads=r.data.filter(l=>l.length>=2).map(l=>({nome:l[0].trim(),numero:l[1].trim(),obs:''}));
+        render();
+      }});
+    }
+    function lerXLSX(f){
+      const fr=new FileReader();
+      fr.onload=e=>{
+        const wb=XLSX.read(e.target.result,{type:'binary'});
+        const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1});
+        leads=rows.filter(r=>r.length>=2).map(r=>({nome:r[0].trim(),numero:r[1].trim(),obs:''}));
+        render();
+      };
+      fr.readAsBinaryString(f);
+    }
+
+    /* ---------- Render ---------- */
+    function render(){
+      const div=document.getElementById('leadsContainer');
+      div.innerHTML='';
+      leads.forEach((lead,i)=>{
+        const numLimpo=lead.numero.replace(/\D/g,'');
+        const card=document.createElement('div');
+        card.className='lead';
+        card.innerHTML=`
+          <strong>${lead.nome}</strong> – <span>${lead.numero}</span>
+          <div class="actions">
+            <a href="tel:${numLimpo}" class="call-btn" onclick="highlight(${i})">Ligar</a>
+            <button class="whats-btn" onclick="window.open('https://wa.me/55${numLimpo}')">WhatsApp</button>
+            <button class="save-btn" onclick="saveLead(${i})">Salvar</button>
+            <textarea id="obs-${i}" placeholder="Observações...">${lead.obs||''}</textarea>
+          </div>`;
+        div.appendChild(card);
+      });
+    }
+
+    /* ---------- Ações ---------- */
+    function highlight(idx){
+      document.querySelectorAll('.lead').forEach((el,i)=>el.classList.toggle('active',i===idx));
+    }
+    function saveLead(i){
+      leads[i].obs=document.getElementById('obs-'+i).value.trim();
+      callCount++; document.getElementById('callCount').textContent=callCount;
+      leads.push(leads.splice(i,1)[0]); render();
+    }
+    function limpar(){
+      if(confirm('Apagar todos os contatos e zerar contador?')){
+        leads=[]; callCount=0;
+        fileInput.value='';
+        document.getElementById('callCount').textContent='0';
+        document.getElementById('leadsContainer').innerHTML='';
+      }
+    }
+  </script>
+</body>
+</html>
